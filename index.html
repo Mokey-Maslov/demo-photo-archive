@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Фотоархив — прототип</title>
+<meta name="description" content="Прототип приложения для личного фотоархива: загрузка папок, альбомы, просмотр, поиск и сортировка по дате.">
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--ink:#16181d;--muted:#6b7280;--line:#e5e7eb;--acc:#2563eb;--acc-soft:#e8efff;--hover:#f1f3f6}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--panel:#181b22;--ink:#e8eaee;--muted:#9aa1ad;--line:#262a33;--acc:#5b8cff;--acc-soft:#1c2740;--hover:#1f232c}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{font-weight:700;font-size:16px;margin-right:8px;white-space:nowrap}
+.search{flex:1;max-width:380px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+button:hover,.btn:hover{background:var(--hover)}
+.primary{background:var(--acc);border-color:var(--acc);color:#fff}.primary:hover{background:var(--acc);filter:brightness(1.08)}
+select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.main{flex:1;display:flex;min-height:0}
+aside{width:240px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:12px 8px}
+aside h4{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:14px 10px 6px}
+.nav{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:7px;cursor:pointer;gap:8px}
+.nav:hover{background:var(--hover)}.nav.on{background:var(--acc-soft);color:var(--acc);font-weight:600}
+.nav span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nav small{color:var(--muted);font-size:12px}
+.nav.drop{outline:2px dashed var(--acc)}
+.add{margin:6px 10px;color:var(--acc);cursor:pointer;font-size:13px}
+.content{flex:1;overflow:auto;padding:16px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.head h2{font-size:18px}.head .muted{color:var(--muted)}
+.selbar{display:none;align-items:center;gap:8px;background:var(--acc-soft);padding:8px 12px;border-radius:10px;margin-bottom:12px;flex-wrap:wrap}
+.selbar.on{display:flex}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--size,160px),1fr));gap:8px}
+.day{grid-column:1/-1;font-weight:600;color:var(--muted);margin:10px 0 2px;font-size:13px}
+.ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--line);cursor:pointer}
+.ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.ph:hover img{transform:scale(1.03)}
+.ph .chk{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.25);opacity:0;transition:opacity .15s}
+.ph:hover .chk,.ph.sel .chk{opacity:1}.ph.sel .chk{background:var(--acc);border-color:var(--acc)}
+.ph.sel{outline:3px solid var(--acc);outline-offset:-3px}
+.ph .fav{position:absolute;right:6px;bottom:4px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);font-size:16px}
+.empty{text-align:center;color:var(--muted);padding:80px 20px}
+.empty b{display:block;font-size:18px;color:var(--ink);margin-bottom:8px}
+.empty .row{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.viewer{position:fixed;inset:0;background:rgba(8,9,12,.94);display:none;z-index:50;color:#fff}
+.viewer.on{display:flex}
+.viewer .stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-width:0}
+.viewer img{max-width:92%;max-height:88vh;object-fit:contain;border-radius:4px}
+.viewer .nb{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.1);border:0;color:#fff;font-size:26px;width:48px;height:64px;border-radius:10px}
+.viewer .nb:hover{background:rgba(255,255,255,.2)}.prev{left:14px}.next{right:14px}
+.viewer .info{width:280px;background:#15171c;padding:20px;overflow:auto;border-left:1px solid #262a33}
+.viewer .info h3{font-size:15px;margin-bottom:12px;word-break:break-all}
+.viewer .info dl{display:grid;grid-template-columns:90px 1fr;gap:6px;font-size:13px;color:#b8bec9}.viewer .info dt{color:#7d8592}
+.viewer .info button{background:#232730;color:#fff;border-color:#333845;width:100%;margin-top:8px}
+.viewer .x{position:absolute;top:12px;right:14px;background:rgba(255,255,255,.1);border:0;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;transition:transform .25s;z-index:60}
+.toast.on{transform:translateX(-50%) translateY(0)}
+.note{font-size:12px;color:var(--muted);padding:10px;margin-top:12px;border-top:1px solid var(--line)}
+input[type=file]{display:none}
+@media(max-width:760px){aside{display:none}.viewer .info{display:none}.logo{display:none}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="logo">📷 Фотоархив</div>
+  <input class="search" id="q" placeholder="Поиск по имени файла или папке">
+  <select id="sort" title="Сортировка"><option value="new">Сначала новые</option><option value="old">Сначала старые</option><option value="name">По имени</option></select>
+  <input type="range" id="size" min="100" max="280" value="160" title="Размер превью" style="width:90px">
+  <label class="btn primary" for="pickDir">+ Добавить папку</label>
+  <input type="file" id="pickDir" webkitdirectory multiple>
+  <label class="btn" for="pickFiles">Фото</label>
+  <input type="file" id="pickFiles" accept="image/*" multiple>
+</div>
+<div class="main">
+  <aside>
+    <div class="nav on" data-view="all"><span>Все фото</span><small id="cAll">0</small></div>
+    <div class="nav" data-view="fav"><span>★ Избранное</span><small id="cFav">0</small></div>
+    <h4>Папки</h4><div id="folders"></div>
+    <h4>Альбомы</h4><div id="albums"></div>
+    <div class="add" id="newAlbum">+ Новый альбом</div>
+    <div class="note">Прототип работает в браузере: фото не загружаются в интернет, всё остаётся на вашем компьютере. В настольной версии то же самое под Windows и macOS.</div>
+  </aside>
+  <div class="content" id="content">
+    <div class="head"><div><h2 id="title">Все фото</h2><span class="muted" id="sub"></span></div></div>
+    <div class="selbar" id="selbar"><b id="selN">0</b> выбрано
+      <select id="toAlbum"><option value="">Добавить в альбом…</option></select>
+      <button id="selFav">★ В избранное</button><button id="selRm" style="display:none">Убрать из альбома</button><button id="selClear">Снять выбор</button></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="viewer" id="viewer">
+  <div class="stage"><button class="nb prev" id="vPrev">‹</button><img id="vImg" alt=""><button class="nb next" id="vNext">›</button><button class="x" id="vX">✕</button></div>
+  <div class="info"><h3 id="vName"></h3><dl id="vMeta"></dl><button id="vFav">★ В избранное</button><button id="vDown">Скачать копию</button></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const S={photos:[],albums:{},fav:new Set(),view:'all',sel:new Set(),cur:-1,list:[]};
+const LS='photoarchive.v1';
+function save(){try{localStorage.setItem(LS,JSON.stringify({albums:S.albums,fav:[...S.fav]}))}catch(e){}}
+try{const d=JSON.parse(localStorage.getItem(LS)||'{}');S.albums=d.albums||{};S.fav=new Set(d.fav||[])}catch(e){}
+if(!Object.keys(S.albums).length)S.albums={'Отпуск':[],'Семья':[]};
+const key=p=>p.path+'|'+p.size;
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)}
+function fmtSize(b){return b>1e6?(b/1e6).toFixed(1)+' МБ':Math.round(b/1e3)+' КБ'}
+function fmtDay(t){const s=new Date(t).toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(' г.','');return s[0].toUpperCase()+s.slice(1)}
+
+function addFiles(files){
+  let n=0;const known=new Set(S.photos.map(key));
+  for(const f of files){if(!f.type.startsWith('image/'))continue;
+    const path=f.webkitRelativePath||f.name;const folder=path.includes('/')?path.split('/').slice(0,-1).join('/'):'Без папки';
+    const p={name:f.name,path,folder,size:f.size,date:f.lastModified,url:URL.createObjectURL(f),w:0,h:0};
+    if(known.has(key(p)))continue;known.add(key(p));S.photos.push(p);n++;
+    const im=new Image();im.onload=()=>{p.w=im.naturalWidth;p.h=im.naturalHeight};im.src=p.url}
+  toast(n?`Добавлено фото: ${n}`:'Новых фото не найдено');render();
+}
+$('#pickDir').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+$('#pickFiles').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{if(e.dataTransfer.files.length&&!e.target.closest('.nav')){e.preventDefault();addFiles(e.dataTransfer.files)}});
+
+function demo(){
+  const scenes=[['Море','#0ea5e9','#f59e0b'],['Горы','#64748b','#e2e8f0'],['Лес','#166534','#a3e635'],['Закат','#7c2d12','#fb923c'],['Город','#1e293b','#94a3b8'],['Поле','#ca8a04','#86efac']];
+  const folders=['2024/Лето в Сочи','2024/Новый год','2025/Горы Алтая','2025/Дача'];const files=[];const base=[Date.now()-86400e3*480,Date.now()-86400e3*300,Date.now()-86400e3*120,Date.now()-86400e3*20];
+  let i=0;for(const fo of folders){let t=base[i];for(let k=0;k<9;k++){const [nm,a,b]=scenes[(i+k)%scenes.length];const c=document.createElement('canvas');c.width=640;c.height=480;const g=c.getContext('2d');
+    const gr=g.createLinearGradient(0,0,0,480);gr.addColorStop(0,a);gr.addColorStop(1,b);g.fillStyle=gr;g.fillRect(0,0,640,480);
+    g.fillStyle='rgba(255,255,255,.18)';for(let s=0;s<5;s++){g.beginPath();g.arc(Math.random()*640,Math.random()*300,20+Math.random()*60,0,7);g.fill()}
+    g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.moveTo(0,480);for(let x=0;x<=640;x+=40)g.lineTo(x,330+Math.sin(x/70+k)*40+Math.random()*20);g.lineTo(640,480);g.fill();
+    g.fillStyle='#fff';g.font='bold 30px system-ui';g.fillText(nm,24,52);
+    const d=c.toDataURL('image/jpeg',.8);const bin=atob(d.split(',')[1]);const arr=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)arr[j]=bin.charCodeAt(j);
+    const f=new File([arr],`IMG_${String(1000+i*9+k)}.jpg`,{type:'image/jpeg',lastModified:t+=3600e3*(2+Math.random()*20)});
+    Object.defineProperty(f,'webkitRelativePath',{value:`Фото/${fo}/${f.name}`});files.push(f)}i++}
+  addFiles(files);
+}
+
+function current(){
+  const q=$('#q').value.trim().toLowerCase();let l=S.photos;
+  if(S.view==='fav')l=l.filter(p=>S.fav.has(key(p)));
+  else if(S.view.startsWith('f:'))l=l.filter(p=>p.folder===S.view.slice(2));
+  else if(S.view.startsWith('a:'))l=l.filter(p=>(S.albums[S.view.slice(2)]||[]).includes(key(p)));
+  if(q)l=l.filter(p=>p.path.toLowerCase().includes(q));
+  const s=$('#sort').value;l=[...l].sort(s==='name'?(a,b)=>a.name.localeCompare(b.name,'ru',{numeric:true}):s==='old'?(a,b)=>a.date-b.date:(a,b)=>b.date-a.date);
+  return l;
+}
+function render(){
+  $('#cAll').textContent=S.photos.length;$('#cFav').textContent=S.photos.filter(p=>S.fav.has(key(p))).length;
+  const fc={};S.photos.forEach(p=>fc[p.folder]=(fc[p.folder]||0)+1);
+  $('#folders').innerHTML=Object.keys(fc).sort().map(f=>`<div class="nav${S.view==='f:'+f?' on':''}" data-view="f:${f}" title="${f}"><span>📁 ${f.split('/').pop()}</span><small>${fc[f]}</small></div>`).join('')||'<div class="nav" style="color:var(--muted);cursor:default">Пока пусто</div>';
+  $('#albums').innerHTML=Object.keys(S.albums).map(a=>`<div class="nav${S.view==='a:'+a?' on':''}" data-view="a:${a}" data-album="${a}"><span>🗂 ${a}</span><small>${S.albums[a].length}</small></div>`).join('');
+  document.querySelectorAll('.nav[data-view]').forEach(n=>n.classList.toggle('on',n.dataset.view===S.view));
+  $('#toAlbum').innerHTML='<option value="">Добавить в альбом…</option>'+Object.keys(S.albums).map(a=>`<option>${a}</option>`).join('');
+  const titles={all:'Все фото',fav:'Избранное'};$('#title').textContent=titles[S.view]||S.view.slice(2).split('/').pop();
+  const l=current();S.list=l;$('#sub').textContent=l.length?`${l.length} фото`:'';
+  $('#selRm').style.display=S.view.startsWith('a:')?'':'none';
+  const g=$('#grid');
+  if(!S.photos.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><b>Добавьте фото, чтобы начать</b>Выберите папку с фотографиями или перетащите фото в окно. Вложенные папки подтянутся сами.<div class="row"><label class="btn primary" for="pickDir">Выбрать папку</label><button id="demoBtn">Показать на примерах</button></div></div>`;$('#demoBtn').onclick=demo;return}
+  if(!l.length){g.innerHTML='<div class="empty" style="grid-column:1/-1">Здесь пока нет фото. Выделите фото и добавьте их в альбом, или перетащите на альбом слева.</div>';return}
+  let h='',last='';const byDay=$('#sort').value!=='name';
+  l.forEach((p,i)=>{const d=fmtDay(p.date);if(byDay&&d!==last){h+=`<div class="day">${d}</div>`;last=d}
+    h+=`<div class="ph${S.sel.has(key(p))?' sel':''}" data-i="${i}" draggable="true"><img loading="lazy" src="${p.url}" alt="${p.name}"><div class="chk"></div>${S.fav.has(key(p))?'<div class="fav">★</div>':''}</div>`});
+  g.innerHTML=h;updSel();
+}
+function updSel(){$('#selN').textContent=S.sel.size;$('#selbar').classList.toggle('on',S.sel.size>0)}
+$('#grid').addEventListener('click',e=>{const t=e.target.closest('.ph');if(!t)return;const p=S.list[+t.dataset.i];
+  if(e.target.classList.contains('chk')||e.ctrlKey||e.metaKey||S.sel.size){const k=key(p);S.sel.has(k)?S.sel.delete(k):S.sel.add(k);t.classList.toggle('sel');updSel()}else open(+t.dataset.i)});
+$('#grid').addEventListener('dragstart',e=>{const t=e.target.closest('.ph');if(!t)return;const k=key(S.list[+t.dataset.i]);if(!S.sel.has(k)){S.sel.clear();S.sel.add(k)}e.dataTransfer.setData('text/plain','photos')});
+document.querySelector('aside').addEventListener('click',e=>{const n=e.target.closest('.nav[data-view]');if(!n)return;S.view=n.dataset.view;S.sel.clear();render()});
+document.querySelector('aside').addEventListener('dragover',e=>{const n=e.target.closest('[data-album]');if(n){e.preventDefault();n.classList.add('drop')}});
+document.querySelector('aside').addEventListener('dragleave',e=>{const n=e.target.closest('[data-album]');if(n)n.classList.remove('drop')});
+document.querySelector('aside').addEventListener('drop',e=>{const n=e.target.closest('[data-album]');if(!n)return;e.preventDefault();e.stopPropagation();n.classList.remove('drop');toAlbum(n.dataset.album)});
+function toAlbum(a){const arr=S.albums[a];let n=0;S.sel.forEach(k=>{if(!arr.includes(k)){arr.push(k);n++}});save();toast(`В альбом «${a}» добавлено: ${n}`);S.sel.clear();render()}
+$('#toAlbum').onchange=e=>{if(e.target.value)toAlbum(e.target.value)};
+$('#selFav').onclick=()=>{S.sel.forEach(k=>S.fav.add(k));save();toast('Добавлено в избранное');S.sel.clear();render()};
+$('#selRm').onclick=()=>{const a=S.view.slice(2);S.albums[a]=S.albums[a].filter(k=>!S.sel.has(k));save();S.sel.clear();render()};
+$('#selClear').onclick=()=>{S.sel.clear();render()};
+$('#newAlbum').onclick=()=>{let base='Новый альбом',nm=base,i=2;while(S.albums[nm])nm=base+' '+i++;S.albums[nm]=[];save();S.view='a:'+nm;render();
+  const el=document.querySelector(`[data-album="${CSS.escape(nm)}"] span`);el.contentEditable=true;el.textContent=nm;el.focus();document.getSelection().selectAllChildren(el);
+  const done=()=>{el.contentEditable=false;const v=el.textContent.trim();if(v&&v!==nm&&!S.albums[v]){S.albums[v]=S.albums[nm];delete S.albums[nm];S.view='a:'+v;save()}render()};
+  el.onblur=done;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();el.blur()}}};
+['#q','#sort'].forEach(s=>$(s).addEventListener('input',render));
+$('#size').oninput=e=>$('#grid').style.setProperty('--size',e.target.value+'px');
+
+function open(i){S.cur=i;const p=S.list[i];if(!p)return;$('#vImg').src=p.url;$('#vName').textContent=p.name;
+  $('#vMeta').innerHTML=`<dt>Папка</dt><dd>${p.folder}</dd><dt>Дата</dt><dd>${new Date(p.date).toLocaleString('ru-RU')}</dd><dt>Размер</dt><dd>${fmtSize(p.size)}</dd><dt>Разрешение</dt><dd>${p.w?p.w+' × '+p.h:'—'}</dd><dt>Альбомы</dt><dd>${Object.keys(S.albums).filter(a=>S.albums[a].includes(key(p))).join(', ')||'нет'}</dd>`;
+  $('#vFav').textContent=S.fav.has(key(p))?'★ Убрать из избранного':'☆ В избранное';$('#viewer').classList.add('on')}
+function step(d){if(S.list.length)open((S.cur+d+S.list.length)%S.list.length)}
+$('#vPrev').onclick=()=>step(-1);$('#vNext').onclick=()=>step(1);$('#vX').onclick=()=>$('#viewer').classList.remove('on');
+$('#vFav').onclick=()=>{const k=key(S.list[S.cur]);S.fav.has(k)?S.fav.delete(k):S.fav.add(k);save();open(S.cur);render()};
+$('#vDown').onclick=()=>{const p=S.list[S.cur];const a=document.createElement('a');a.href=p.url;a.download=p.name;a.click()};
+document.addEventListener('keydown',e=>{if(!$('#viewer').classList.contains('on'))return;if(e.key==='Escape')$('#vX').click();if(e.key==='ArrowLeft')step(-1);if(e.key==='ArrowRight')step(1)});
+render();
+</script>
+</body>
+</html>
